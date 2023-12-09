@@ -436,15 +436,19 @@ if __name__ == "__main__":
         #     cv2.imshow("cropped", crop_img)
         #     cv2.waitKey(0)
 
-    
+        if len(result_boxes) > 0:
         # do tracking
-        outputs = tracker.update(result_boxes, result_scores, img)
+            outputs = tracker.update(result_boxes, result_scores, img)
+        else:
+            outputs = np.array([])
 
         # draw boxes for visualization
         if len(outputs) > 0:
             bbox_xyxy = outputs[:, :4]
             identities = outputs[:, -1]
             img = draw_boxes(img, bbox_xyxy, identities)
+        else:
+            img = img
 
         cv2.imshow("Recognition result", img)
         #cv2.imshow("Recognition result depth",depth_colormap)
