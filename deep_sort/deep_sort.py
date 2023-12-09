@@ -26,7 +26,7 @@ class DeepSort(object):
         self.tracker = Tracker(metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
     def update(self, bbox_xyxy, confidences, ori_img):
-        # self.height, self.width = ori_img.shape[:2]
+        self.height, self.width = ori_img.shape[:2]
         # generate detections
         features = self._get_features(bbox_xyxy, ori_img)
         bbox_tlwh = self._xywh_to_tlwh(bbox_xyxy)
@@ -81,11 +81,6 @@ class DeepSort(object):
         return x1,y1,x2,y2
 
     def _tlwh_to_xyxy(self, bbox_tlwh):
-        """
-        TODO:
-            Convert bbox from xtl_ytl_w_h to xc_yc_w_h
-        Thanks JieChen91@github.com for reporting this bug!
-        """
         x,y,w,h = bbox_tlwh
         x1 = max(int(x),0)
         x2 = min(int(x+w),self.width-1)
@@ -107,7 +102,8 @@ class DeepSort(object):
         for box in bbox_xyxy:
             x1,y1,x2,y2 = int(box[0]),int(box[1]),int(box[2]),int(box[3])
             im = ori_img[y1:y2,x1:x2]
-            cv2.imshow("im", im)
+            # cv2.imshow("im", im)
+            # cv2.waitKey(0)
             im_crops.append(im)
         if im_crops:
             features = self.extractor(im_crops)

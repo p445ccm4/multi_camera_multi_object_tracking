@@ -428,7 +428,8 @@ if __name__ == "__main__":
 
         # print(result_boxes.shape) #how many person detected
         # print(result_classid)
-        #crop the image in the original image than show the image
+
+        # # crop the image in the original image than show the image
         # for i in range(result_boxes.shape[0]):
         #     x1,y1,x2,y2 = result_boxes[i,:]
         #     crop_img = img[int(y1):int(y2), int(x1):int(x2)]
@@ -439,16 +440,16 @@ if __name__ == "__main__":
         # do tracking
         outputs = tracker.update(result_boxes, result_scores, img)
 
-        # # draw boxes for visualization
-        # if len(outputs) > 0:
-        #     bbox_xyxy = outputs[:, :4]
-        #     identities = outputs[:, -1]
-        #     img = draw_boxes(img, bbox_xyxy, identities)
+        # draw boxes for visualization
+        if len(outputs) > 0:
+            bbox_xyxy = outputs[:, :4]
+            identities = outputs[:, -1]
+            img = draw_boxes(img, bbox_xyxy, identities)
 
-        # cv2.imshow("Recognition result", img)
-        # #cv2.imshow("Recognition result depth",depth_colormap)
-        # if cv2.waitKey(1) & 0xFF == ord('q'):
-        #     break
+        cv2.imshow("Recognition result", img)
+        #cv2.imshow("Recognition result depth",depth_colormap)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
 
 
     # destroy the instance
