@@ -13,7 +13,8 @@ __all__ = ['DeepSort']
 
 
 class DeepSort(object):
-    def __init__(self, model_path, max_dist=0.2, min_confidence=0.3, nms_max_overlap=1.0, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100, use_cuda=True):
+    #max_age代表tracker存活期限, >n_init将不确定态转为确定态, budget 用来控制特征列表的长度
+    def __init__(self, model_path, max_dist=0.2, min_confidence=0.3, nms_max_overlap=1.0, max_iou_distance=0.7, max_age=60, n_init=3, nn_budget=10, use_cuda=True):
         self.min_confidence = min_confidence
         self.nms_max_overlap = nms_max_overlap
         self.extractor = Extractor(model_path, use_cuda=use_cuda)
@@ -90,8 +91,8 @@ class DeepSort(object):
             bbox_tlwh = bbox_xyxy.copy()
         elif isinstance(bbox_xyxy, torch.Tensor):
             bbox_tlwh = bbox_xyxy.clone()
-        print(bbox_xyxy.shape)
-        print(bbox_tlwh.shape)
+        # print(bbox_xyxy.shape)
+        # print(bbox_tlwh.shape)
         bbox_tlwh[:, 0] = bbox_xyxy[:, 0]  # x1
         bbox_tlwh[:, 1] = bbox_xyxy[:, 1]  # y1
         bbox_tlwh[:, 2] = bbox_xyxy[:, 2] - bbox_xyxy[:, 0]  # x2 - x1 (width)

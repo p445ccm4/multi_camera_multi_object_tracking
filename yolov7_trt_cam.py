@@ -216,7 +216,8 @@ class YoLov7TRT(object):
         """
         image_raw = raw_bgr_image
         h, w, c = image_raw.shape
-        image = cv2.cvtColor(image_raw, cv2.COLOR_BGR2RGB)
+        image = image_raw.copy()
+        # image = cv2.cvtColor(image_raw, cv2.COLOR_BGR2RGB)
         # Calculate widht and height and paddings
         r_w = self.input_w / w
         r_h = self.input_h / h
@@ -415,8 +416,9 @@ if __name__ == "__main__":
 
     while(True):
         ret, frame = cap.read()
-        img = frame
+        # img = frame
         # img = cv2.resize(frame, (640, 480))
+        img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result_boxes, result_scores, result_classid = yolov7_wrapper.infer(img)
 
         # select person class
@@ -446,11 +448,11 @@ if __name__ == "__main__":
         if len(outputs) > 0:
             bbox_xyxy = outputs[:, :4]
             identities = outputs[:, -1]
-            img = draw_boxes(img, bbox_xyxy, identities)
+            frame = draw_boxes(frame, bbox_xyxy, identities)
         else:
-            img = img
+            frame = frame
 
-        cv2.imshow("Recognition result", img)
+        cv2.imshow("Recognition result", frame)
         #cv2.imshow("Recognition result depth",depth_colormap)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
