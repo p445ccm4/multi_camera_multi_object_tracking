@@ -21,7 +21,7 @@ class DeepSort(object):
         max_cosine_distance = max_dist
         metric = NearestNeighborDistanceMetric("cosine", max_cosine_distance, nn_budget)
         self.tracker = Tracker(metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
-
+    # @profile
     def update(self, bbox_xyxy, confidences, ori_img):
         self.height, self.width = ori_img.shape[:2]
         # generate detections
@@ -67,7 +67,6 @@ class DeepSort(object):
         bbox_tlwh[:,0] = bbox_xywh[:,0] - bbox_xywh[:,2]/2.
         bbox_tlwh[:,1] = bbox_xywh[:,1] - bbox_xywh[:,3]/2.
         return bbox_tlwh
-
 
     def _xywh_to_xyxy(self, bbox_xywh):
         x,y,w,h = bbox_xywh
