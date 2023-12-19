@@ -90,12 +90,19 @@ if __name__ == "__main__":
     yolov7_wrapper = YoLov7TRT(engine_file_path)
     tracker = DeepSort("deep_sort/deep/checkpoint/osnet_x0_25.engine", max_dist=0.2, min_confidence=0.4, nms_max_overlap=1, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100, use_cuda=True)
 
-    cap = cv2.VideoCapture(0)
+    # read video and do inference than save the result video
+    cap = cv2.VideoCapture("MOT_test_video.mp4")
+    # Define the codec and create VideoWriter object  (mp4)
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter('output.mp4',fourcc, 20.0, (int(cap.get(3)),int(cap.get(4))))
 
+    
     while(True):
+        # Capture frame-by-frame
         ret, frame = cap.read()
-        # img = frame
-        # img = cv2.resize(frame, (640, 480))
+        if ret == False:
+            break
+        # Our operations on the frame come here
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         result_boxes, result_scores, result_classid = yolov7_wrapper.infer(img)
 
@@ -103,18 +110,7 @@ if __name__ == "__main__":
         mask = result_classid == 0
         result_boxes = result_boxes[mask]
         result_scores = result_scores[mask]
-        # print(result_boxes)
 
-
-        # print(result_boxes.shape) #how many person detected
-        # print(result_classid)
-
-        # # crop the image in the original image than show the image
-        # for i in range(result_boxes.shape[0]):
-        #     x1,y1,x2,y2 = result_boxes[i,:]
-        #     crop_img = img[int(y1):int(y2), int(x1):int(x2)]
-        #     cv2.imshow("cropped", crop_img)
-        #     cv2.waitKey(0)
 
         if len(result_boxes) > 0:
         # do tracking
@@ -130,10 +126,8 @@ if __name__ == "__main__":
         else:
             frame = frame
 
-        cv2.imshow("Recognition result", frame)
-        #cv2.imshow("Recognition result depth",depth_colormap)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+        # save the result video
+        out.write(frame)
 
 
     # destroy the instance
