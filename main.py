@@ -91,10 +91,10 @@ if __name__ == "__main__":
     tracker = DeepSort("deep_sort/deep/checkpoint/osnet_x0_25.engine", max_dist=0.2, min_confidence=0.4, nms_max_overlap=1, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100, use_cuda=True)
 
     # read video and do inference than save the result video
-    cap = cv2.VideoCapture("MOT_test_video.mp4")
+    cap = cv2.VideoCapture("video/MOT_test_video.mp4")
     # Define the codec and create VideoWriter object  (mp4)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter('output.mp4',fourcc, 20.0, (int(cap.get(3)),int(cap.get(4))))
+    out = cv2.VideoWriter('video/output.mp4',fourcc, 20.0, (int(cap.get(3)),int(cap.get(4))))
 
     
     while(True):
