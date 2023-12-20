@@ -1,5 +1,5 @@
 # vim: expandtab:ts=4:sw=4
-
+import numpy as np
 
 class TrackState:
     """
@@ -137,7 +137,15 @@ class Track:
         """
         self.mean, self.covariance = kf.update(
             self.mean, self.covariance, detection.to_xyah(), detection.confidence)
-        self.features.append(detection.feature)
+        
+        feature = detection.feature / np.linalg.norm(detection.feature)
+        print("feature: ", feature.shape)
+        print("self.features: ", len(self.features))
+        smooth_feat = 0.9 * self.features[-1] + (1 - 0.9) * feature
+        smooth_feat /= np.linalg.norm(smooth_feat)
+        self.features = [smooth_feat]
+
+        # self.features.append(detection.feature)
 
         self.hits += 1
         self.time_since_update = 0

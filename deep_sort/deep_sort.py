@@ -14,7 +14,7 @@ __all__ = ['DeepSort']
 
 class DeepSort(object):
     #max_age代表tracker存活期限, >n_init将不确定态转为确定态, budget 用来控制特征列表的长度
-    def __init__(self, model_path, max_dist=0.2, min_confidence=0.3, nms_max_overlap=1.0, max_iou_distance=0.7, max_age=60, n_init=3, nn_budget=10, use_cuda=True):
+    def __init__(self, model_path, max_dist=0.2, min_confidence=0.3, nms_max_overlap=1.0, max_iou_distance=0.7, max_age=60, n_init=3, nn_budget=1, use_cuda=True):
         self.min_confidence = min_confidence
         self.nms_max_overlap = nms_max_overlap
         self.extractor = Extractor(model_path, use_cuda=use_cuda)
