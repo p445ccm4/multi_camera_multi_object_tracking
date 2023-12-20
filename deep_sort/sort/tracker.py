@@ -86,7 +86,7 @@ class Tracker:
                 continue
             features += track.features
             targets += [track.track_id for _ in track.features]
-            track.features = []
+            # track.features = []
         self.metric.partial_fit(
             np.asarray(features), np.asarray(targets), active_targets)
 

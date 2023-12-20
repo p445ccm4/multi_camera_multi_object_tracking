@@ -139,8 +139,6 @@ class Track:
             self.mean, self.covariance, detection.to_xyah(), detection.confidence)
         
         feature = detection.feature / np.linalg.norm(detection.feature)
-        print("feature: ", feature.shape)
-        print("self.features: ", len(self.features))
         smooth_feat = 0.9 * self.features[-1] + (1 - 0.9) * feature
         smooth_feat /= np.linalg.norm(smooth_feat)
         self.features = [smooth_feat]
