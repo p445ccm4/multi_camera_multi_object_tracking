@@ -101,6 +101,45 @@ class Tracker:
                 detection_indices)
 
             return cost_matrix
+        
+        def disappeared_in_middle(track):
+            """
+            Check if a track disappeared in the middle of the image.
+            """
+            # Assuming the image dimensions are known (img_width, img_height)
+            middle_region = [480, 270, 1440, 810]
+            cxcy = track.mean[:2]
+            return (middle_region[0] < cxcy[0] < middle_region[2]) and (middle_region[1] < cxcy[1] < middle_region[3])
+
+        def greedy_matching_based_on_appearance(tracks, detections, track_indices, unmatched_detections):
+            # Create a cost matrix based on appearance features
+            features = np.array([detections[i].feature for i in unmatched_detections])
+            # print("features: ", features) #[[0.1, 0.2, 0.3, 0.4]]]
+            targets = np.array([tracks[i].track_id for i in track_indices])
+            # print("targets: ", targets) #[1]
+            cost_matrix = self.metric.distance(features, targets)
+
+            matches = []
+            while cost_matrix.size != 0:
+                # Find the index of the minimum cost
+                min_index = np.unravel_index(np.argmin(cost_matrix, axis=None), cost_matrix.shape)
+                match_threshold = 0.5  # Set a threshold for matching
+
+                if cost_matrix[min_index] < match_threshold:
+                    track_idx = track_indices[min_index[1]]
+                    detection_idx = unmatched_detections[min_index[0]]
+                    matches.append((track_idx, detection_idx))
+
+                    # Remove matched track and detection from the pool
+                    cost_matrix = np.delete(cost_matrix, min_index[0], 0)
+                    cost_matrix = np.delete(cost_matrix, min_index[1], 1)
+                    track_indices.remove(track_idx)
+                    unmatched_detections.remove(detection_idx)
+                else:
+                    break  # No more good matches
+
+            unmatched_tracks = track_indices
+            return matches, unmatched_tracks, unmatched_detections
 
         # Split track set into confirmed and unconfirmed tracks.
         confirmed_tracks = [
@@ -108,11 +147,30 @@ class Tracker:
         unconfirmed_tracks = [
             i for i, t in enumerate(self.tracks) if not t.is_confirmed()]
 
+        
         # Associate confirmed tracks using appearance features.
         matches_a, unmatched_tracks_a, unmatched_detections = \
             linear_assignment.matching_cascade(
                 gated_metric, self.metric.matching_threshold, self.max_age,
                 self.tracks, detections, confirmed_tracks)
+
+        if len(confirmed_tracks)!=0:
+            # New step: Greedy matching for unconfirmed tracks that disappeared in the middle
+            middle_unconfirmed_tracks = [
+                i for i in unconfirmed_tracks if disappeared_in_middle(self.tracks[i]) and self.tracks[i].track_id in self.metric.samples]
+
+            # print("middle_unconfirmed_tracks: ", middle_unconfirmed_tracks)
+            # print("unmatched_detections: ", unmatched_detections)
+
+            greedy_matches, unmatched_tracks_greedy, unmatched_detections = \
+                greedy_matching_based_on_appearance(
+                    self.tracks, detections, middle_unconfirmed_tracks, unmatched_detections)
+            matches_a += greedy_matches
+            unmatched_tracks_a = list(set(unmatched_tracks_a) - set(k for k, _ in greedy_matches))
+
+            # Update the list of unconfirmed tracks
+            unconfirmed_tracks = [
+                i for i in unconfirmed_tracks if i not in middle_unconfirmed_tracks]
 
         # Associate remaining tracks together with unconfirmed tracks using IOU.
         iou_track_candidates = unconfirmed_tracks + [
