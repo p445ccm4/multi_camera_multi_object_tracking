@@ -171,7 +171,11 @@ class NearestNeighborDistanceMetric(object):
             `targets[i]` and `features[j]`.
 
         """
+        # print("Current keys in self.samples:", self.samples.keys())
+        # print("Target IDs:", targets)
+        # print("self.samples:", self.samples)
         cost_matrix = np.zeros((len(targets), len(features)))
+        # print("cost_matrix.shape:", cost_matrix.shape)
         for i, target in enumerate(targets):
             cost_matrix[i, :] = self._metric(self.samples[target], features)
         return cost_matrix

@@ -29,6 +29,8 @@ class DeepSort(object):
         bbox_tlwh = self._xyxy_to_tlwh(bbox_xyxy)
         detections = [Detection(bbox_tlwh[i], conf, features[i]) for i,conf in enumerate(confidences) if conf>self.min_confidence]
 
+        # print("detections: ", detections)
+
         # # run on non-maximum supression
         # boxes = np.array([d.tlwh for d in detections])
         # scores = np.array([d.confidence for d in detections])
@@ -99,15 +101,14 @@ class DeepSort(object):
         return bbox_tlwh
     
     def _get_features(self, bbox_xyxy, ori_img):
-        im_crops = []
+        features = []
         for box in bbox_xyxy:
             x1,y1,x2,y2 = int(box[0]),int(box[1]),int(box[2]),int(box[3])
             im = ori_img[y1:y2,x1:x2]
             # cv2.imshow("im", im)
             # cv2.waitKey(0)
-            im_crops.append(im)
-        if im_crops:
-            features = self.extractor(im_crops)
-        else:
-            features = np.array([])
-        return features
+
+            feature = self.extractor([im])
+            features.append(feature)
+
+        return np.concatenate(features)
