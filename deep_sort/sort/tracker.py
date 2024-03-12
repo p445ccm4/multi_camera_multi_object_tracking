@@ -101,7 +101,7 @@ class Tracker:
                 detection_indices)
 
             return cost_matrix
-        
+
         def disappeared_in_middle(track):
             """
             Check if a track disappeared in the middle of the image.
@@ -147,7 +147,7 @@ class Tracker:
         unconfirmed_tracks = [
             i for i, t in enumerate(self.tracks) if not t.is_confirmed()]
 
-        
+
         # Associate confirmed tracks using appearance features.
         matches_a, unmatched_tracks_a, unmatched_detections = \
             linear_assignment.matching_cascade(
