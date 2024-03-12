@@ -47,3 +47,9 @@ class Detection(object):
         ret[:2] += ret[2:] / 2
         ret[2] /= ret[3]
         return ret
+
+    def to_xy(self):
+        """Convert bounding box to format `(center x, center y)`
+        """
+        ret = self.tlwh.copy()
+        return ret[:2] + ret[2:] / 2

@@ -36,7 +36,7 @@ class KalmanFilter(object):
     """
 
     def __init__(self):
-        ndim, dt = 4, 1.
+        ndim, dt = 2, 1.
 
         # Create Kalman filter model matrices.
         self._motion_mat = np.eye(2 * ndim, 2 * ndim)
@@ -68,19 +68,19 @@ class KalmanFilter(object):
             to 0 mean.
 
         """
-        mean_pos = measurement
+        mean_pos = measurement[:2]
         mean_vel = np.zeros_like(mean_pos)
         mean = np.r_[mean_pos, mean_vel]
 
         std = [
             2 * self._std_weight_position * measurement[3],
             2 * self._std_weight_position * measurement[3],
-            1e-2,
-            2 * self._std_weight_position * measurement[3],
+            # 1e-2,
+            # 2 * self._std_weight_position,
             10 * self._std_weight_velocity * measurement[3],
-            10 * self._std_weight_velocity * measurement[3],
-            1e-5,
             10 * self._std_weight_velocity * measurement[3]]
+            # 1e-5,
+            # 10 * self._std_weight_velocity]
         covariance = np.diag(np.square(std))
         return mean, covariance
 
@@ -105,14 +105,14 @@ class KalmanFilter(object):
         """
         std_pos = [
             self._std_weight_position * mean[3],
-            self._std_weight_position * mean[3],
-            1e-2,
             self._std_weight_position * mean[3]]
+            # 1e-2,
+            # self._std_weight_position]
         std_vel = [
             self._std_weight_velocity * mean[3],
-            self._std_weight_velocity * mean[3],
-            1e-5,
             self._std_weight_velocity * mean[3]]
+            # 1e-5,
+            # self._std_weight_velocity]
         motion_cov = np.diag(np.square(np.r_[std_pos, std_vel]))
 
         mean = np.dot(self._motion_mat, mean)
@@ -140,9 +140,9 @@ class KalmanFilter(object):
         """
         std = [
             self._std_weight_position * mean[3],
-            self._std_weight_position * mean[3],
-            1e-1,
             self._std_weight_position * mean[3]]
+            # 1e-1,
+            # self._std_weight_position * mean[3]]
 
 
         std = [(1 - confidence) * x for x in std]
