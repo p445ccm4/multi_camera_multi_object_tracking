@@ -43,6 +43,7 @@ class DeepSort(object):
 
         # output bbox identities
         outputs = []
+        features = []
         for track in self.tracker.tracks:
             if not track.is_confirmed() or track.time_since_update > 1:
                 continue
@@ -50,9 +51,10 @@ class DeepSort(object):
             x1,y1,x2,y2 = self._tlwh_to_xyxy(box)
             track_id = track.track_id
             outputs.append(np.array([x1,y1,x2,y2,track_id], dtype=np.int))
+            features.append(track.features)
         if len(outputs) > 0:
             outputs = np.stack(outputs,axis=0)
-        return outputs
+        return outputs, features
 
 
     """

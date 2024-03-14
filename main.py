@@ -17,9 +17,7 @@ import tensorrt as trt
 from yolov7trt import YoLov7TRT
 from deep_sort.deep_sort import DeepSort
 from draw import draw_boxes
-
-
-
+from multi_camera_calibration.mcmo_local import MCMOLocal
 
 
 # def plot_one_box(x, img, color=None, label=None, line_thickness=None):
@@ -89,17 +87,22 @@ if __name__ == "__main__":
     # a YoLov7TRT instance
     yolov7_wrapper = YoLov7TRT(engine_file_path)
     tracker = DeepSort("deep_sort/deep/checkpoint/osnet_x0_25.engine", max_dist=0.2, min_confidence=0.4, nms_max_overlap=1, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100, use_cuda=True)
+    cam = MCMOLocal('cam_param0')
 
     # read video and do inference than save the result video
-    cap = cv2.VideoCapture("video/MOT_test_video.mp4")
+    # cap = cv2.VideoCapture("video/MOT_test_video.mp4")
+    cap = cv2.VideoCapture(0)
+    # Set the input resolution
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     # Define the codec and create VideoWriter object  (mp4)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    out = cv2.VideoWriter('video/output.mp4',fourcc, 20.0, (int(cap.get(3)),int(cap.get(4))))
+    # out = cv2.VideoWriter('video/output.mp4',fourcc, 20.0, (int(cap.get(3)),int(cap.get(4))))
 
     
     while(True):
         # Capture frame-by-frame
-        ret, frame = cap.read()
+        ret, frame = cap.read() # 640x480
         if ret == False:
             break
         # Our operations on the frame come here
@@ -114,21 +117,28 @@ if __name__ == "__main__":
 
         if len(result_boxes) > 0:
         # do tracking
-            outputs = tracker.update(result_boxes, result_scores, img)
+            outputs, features = tracker.update(result_boxes, result_scores, img)
         else:
-            outputs = np.array([])
+            outputs, features = np.array([]), np.array([])
+
+        world_coordinates = cam.get_world_coordinates(outputs)
+        identities = outputs[:, -1]
+
 
         # draw boxes for visualization
         if len(outputs) > 0:
             bbox_xyxy = outputs[:, :4]
-            identities = outputs[:, -1]
-            frame = draw_boxes(frame, bbox_xyxy, identities)
+            frame = draw_boxes(frame, bbox_xyxy, identities, world_coordinates)
+            frame = cam.draw_axes(frame)
         else:
             frame = frame
+            frame = cam.draw_axes(frame)
 
         # save the result video
-        out.write(frame)
-
+        # out.write(frame)
+        cv2.imshow("result", frame)
+        if cv2.waitKey(0) & 0xFF == ord('q'):
+            break
 
     # destroy the instance
     yolov7_wrapper.destroy()

@@ -12,7 +12,7 @@ def compute_color_for_labels(label):
     return tuple(color)
 
 
-def draw_boxes(img, bbox, identities=None, offset=(0,0)):
+def draw_boxes(img, bbox, identities=None, world_coordinates=None, offset=(0,0)):
     for i,box in enumerate(bbox):
         x1,y1,x2,y2 = [int(i) for i in box]
         x1 += offset[0]
@@ -22,9 +22,10 @@ def draw_boxes(img, bbox, identities=None, offset=(0,0)):
         # box text and bar
         id = int(identities[i]) if identities is not None else 0    
         color = compute_color_for_labels(id)
-        label = '{}{:d}'.format("", id)
+        label = '{}{:d} ({:.2f}, {:.2f})'.format("", id, world_coordinates[i][0][0]*0.001, world_coordinates[i][1][0]*0.001)
         t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 2 , 2)[0]
         cv2.rectangle(img,(x1, y1),(x2,y2),color,3)
+        cv2.circle(img, ((x1+x2)//2, max(y1, y2)), 3, (0, 0, 255), -1)
         cv2.rectangle(img,(x1, y1),(x1+t_size[0]+3,y1+t_size[1]+4), color,-1)
         cv2.putText(img,label,(x1,y1+t_size[1]+4), cv2.FONT_HERSHEY_PLAIN, 2, [255,255,255], 2)
     return img

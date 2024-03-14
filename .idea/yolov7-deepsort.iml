@@ -7,6 +7,10 @@
     </content>
     <orderEntry type="jdk" jdkName="Python 3.8 (yolov7-deepsort)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="multi-camera_calibration" />
+  </component>
+  <component name="PackageRequirementsSettings">
+    <option name="removeUnused" value="true" />
   </component>
   <component name="PyDocumentationSettings">
     <option name="format" value="GOOGLE" />

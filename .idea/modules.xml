@@ -2,6 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../multi-camera_calibration/.idea/multi-camera_calibration.iml" filepath="$PROJECT_DIR$/../multi-camera_calibration/.idea/multi-camera_calibration.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/yolov7-deepsort.iml" filepath="$PROJECT_DIR$/.idea/yolov7-deepsort.iml" />
     </modules>
   </component>
