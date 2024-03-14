@@ -3,8 +3,11 @@ An example that uses TensorRT's Python api to make inferences.
 """
 import ctypes
 import os
+import pickle
 import shutil
 import random
+import socket
+
 import sys
 import threading
 import time
@@ -17,7 +20,7 @@ import tensorrt as trt
 from yolov7trt import YoLov7TRT
 from deep_sort.deep_sort import DeepSort
 from draw import draw_boxes
-from multi_camera_calibration.mcmo_local import MCMOLocal
+from multi_camera_calibration.img_to_world import ImgToWorld
 
 
 # def plot_one_box(x, img, color=None, label=None, line_thickness=None):
@@ -87,7 +90,7 @@ if __name__ == "__main__":
     # a YoLov7TRT instance
     yolov7_wrapper = YoLov7TRT(engine_file_path)
     tracker = DeepSort("deep_sort/deep/checkpoint/osnet_x0_25.engine", max_dist=0.2, min_confidence=0.4, nms_max_overlap=1, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100, use_cuda=True)
-    cam = MCMOLocal('cam_param0')
+    cam = ImgToWorld(cam_id=0)
 
     # read video and do inference than save the result video
     # cap = cv2.VideoCapture("video/MOT_test_video.mp4")
@@ -96,9 +99,13 @@ if __name__ == "__main__":
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
     # Define the codec and create VideoWriter object  (mp4)
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     # out = cv2.VideoWriter('video/output.mp4',fourcc, 20.0, (int(cap.get(3)),int(cap.get(4))))
 
+    # # Create a socket
+    # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # # Connect to the receiver
+    # s.connect(('127.0.0.1', 5000))
     
     while(True):
         # Capture frame-by-frame
@@ -114,20 +121,17 @@ if __name__ == "__main__":
         result_boxes = result_boxes[mask]
         result_scores = result_scores[mask]
 
-
         if len(result_boxes) > 0:
         # do tracking
             outputs, features = tracker.update(result_boxes, result_scores, img)
         else:
             outputs, features = np.array([]), np.array([])
 
-        world_coordinates = cam.get_world_coordinates(outputs)
-        identities = outputs[:, -1]
-
-
         # draw boxes for visualization
         if len(outputs) > 0:
             bbox_xyxy = outputs[:, :4]
+            identities = outputs[:, -1]
+            world_coordinates = cam.get_world_coordinates(outputs)
             frame = draw_boxes(frame, bbox_xyxy, identities, world_coordinates)
             frame = cam.draw_axes(frame)
         else:
@@ -137,8 +141,10 @@ if __name__ == "__main__":
         # save the result video
         # out.write(frame)
         cv2.imshow("result", frame)
-        if cv2.waitKey(0) & 0xFF == ord('q'):
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     # destroy the instance
     yolov7_wrapper.destroy()
+    # Close the socket
+    # s.close()

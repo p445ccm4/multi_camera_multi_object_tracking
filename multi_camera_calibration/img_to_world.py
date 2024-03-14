@@ -4,8 +4,10 @@ import cv2
 import numpy as np
 
 
-class MCMOLocal(object):
-    def __init__(self, cam_param_path):
+class ImgToWorld(object):
+    def __init__(self, cam_id):
+        cam_param_path = f'cam_param{cam_id}'
+        self.cam_id = cam_id
         # Load the saved array
         self.matrix = np.load(os.path.join(cam_param_path, 'internal_matrix.npy'))
         self.r_vec = np.load(os.path.join(cam_param_path, 'rotation_vector.npy'))
