@@ -106,7 +106,8 @@ if __name__ == "__main__":
     # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     # # Connect to the receiver
     # s.connect(('127.0.0.1', 5000))
-    
+    t = 0
+
     while(True):
         # Capture frame-by-frame
         ret, frame = cap.read() # 640x480
@@ -127,13 +128,24 @@ if __name__ == "__main__":
         else:
             outputs, features = np.array([]), np.array([])
 
-        # draw boxes for visualization
         if len(outputs) > 0:
             bbox_xyxy = outputs[:, :4]
             identities = outputs[:, -1]
             world_coordinates = cam.get_world_coordinates(outputs)
+            # draw boxes and axes for visualization
             frame = draw_boxes(frame, bbox_xyxy, identities, world_coordinates)
             frame = cam.draw_axes(frame)
+
+            np.save(f'data/{t}_world_coordinates.npy', world_coordinates)
+            np.save(f'data/{t}_features.npy', features)
+            np.save(f'data/{t}_identities.npy', identities)
+            t += 1
+
+            # # Serialize the object using pickle
+            # data = pickle.dumps(obj)
+            # # Send the serialized object to the receiver
+            # s.send(data)
+            # print(obj)
         else:
             frame = frame
             frame = cam.draw_axes(frame)
