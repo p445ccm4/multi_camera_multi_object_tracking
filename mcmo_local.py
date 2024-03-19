@@ -2,24 +2,12 @@
 An example that uses TensorRT's Python api to make inferences.
 """
 import ctypes
-import os
-import pickle
-import shutil
-import random
-import socket
-
+import socketio
 import sys
-import threading
-import time
 import cv2
 import numpy as np
-import pycuda.autoinit
-import pycuda.driver as cuda
-import tensorrt as trt
-
 from deep_sort.deep.feature_extractor import Extractor
 from yolov7trt import YoLov7TRT
-from deep_sort.deep_sort import DeepSort
 from draw import draw_boxes
 from multi_camera_calibration.img_to_world import ImgToWorld
 
@@ -67,10 +55,11 @@ if __name__ == "__main__":
     # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     # out = cv2.VideoWriter('video/output.mp4',fourcc, 20.0, (int(cap.get(3)),int(cap.get(4))))
 
-    # # Create a socket
-    # s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    # # Connect to the receiver
-    # s.connect(('127.0.0.1', 5000))
+    # Create a SocketIO client
+    sio = socketio.Client()
+    # Connect to the SocketIO server
+    sio.connect('http://127.0.0.1:5000')
+
     t = 0
 
     while(True):
@@ -104,20 +93,17 @@ if __name__ == "__main__":
             bbox_areas = np.asarray(bbox_areas)
 
             world_coordinates = cam.get_world_coordinates(result_boxes)
+            world_coordinates = world_coordinates[:, :2].reshape(-1, 2) * 0.001
             # draw boxes and axes for visualization
             frame = draw_boxes(frame, result_boxes, world_coordinates=world_coordinates)
             frame = cam.draw_axes(frame)
 
-            np.save(f'data/{t}_world_coordinates.npy', world_coordinates)
-            np.save(f'data/{t}_features.npy', features)
-            np.save(f'data/{t}_bbox_areas.npy', bbox_areas)
+            # np.save(f'data/{t}_world_coordinates.npy', world_coordinates)
+            # np.save(f'data/{t}_features.npy', features)
+            # np.save(f'data/{t}_bbox_areas.npy', bbox_areas)
             t += 1
 
-            # # Serialize the object using pickle
-            # data = pickle.dumps(obj)
-            # # Send the serialized object to the receiver
-            # s.send(data)
-            # print(obj)
+            sio.emit('deep_sort', (world_coordinates.tolist(), features.tolist(), bbox_areas.tolist()))
         else:
             frame = frame
             frame = cam.draw_axes(frame)
@@ -125,10 +111,10 @@ if __name__ == "__main__":
         # save the result video
         # out.write(frame)
         cv2.imshow("result", frame)
-        if cv2.waitKey(1) & 0xFF == ord('q'):
+        if cv2.waitKey(5) & 0xFF == ord('q'):
             break
 
     # destroy the instance
     yolov7_wrapper.destroy()
-    # Close the socket
-    # s.close()
+    # Disconnect from the SocketIO server
+    sio.disconnect()

@@ -3,6 +3,8 @@
 # Compare features with existing tracks if there are close matches in distance.
 import os.path
 import numpy as np
+import socketio
+import eventlet
 from matplotlib import pyplot as plt
 from scipy.optimize import linear_sum_assignment
 from deep_sort.sort.nn_matching import NearestNeighborDistanceMetric
@@ -23,26 +25,37 @@ t = 0
 # Create the figure and axes
 fig, ax = plt.subplots()
 # Set the x-axis range
-ax.set_xlim(-10, 10)
+ax.set_xlim(-5, 5)
 # Set the y-axis range
-ax.set_ylim(-10, 10)
+ax.set_ylim(-5, 5)
 plt.ion()
 # plotting the first frame
 graph = ax.scatter([], [])
 plt.pause(0.25)
 
-while True:
-    if not os.path.exists(f'data/{t}_world_coordinates.npy'):
-        break
-    # Load the numpy array from the file
-    world_coordinates_npy = np.load(f'data/{t}_world_coordinates.npy')[:, :2].reshape(-1, 2)
-    world_coordinates_npy *= 0.001
-    features_npy = np.load(f'data/{t}_features.npy')
-    features_npy = features_npy.reshape(-1, 512)
-    bbox_areas_npy = np.load(f'data/{t}_bbox_areas.npy')
-    # print(f'{t}: {world_coordinates_npy}')
-    # print(f'{t}: {global_world_coordinates_npy}')
-    t += 1
+# while True:
+#     if not os.path.exists(f'data/{t}_world_coordinates.npy'):
+#         break
+#     # Load the numpy array from the file
+#     world_coordinates_npy = np.load(f'data/{t}_world_coordinates.npy')[:, :2]
+#     world_coordinates_npy *= 0.001
+#     features_npy = np.load(f'data/{t}_features.npy')
+#     features_npy = features_npy.reshape(-1, 512)
+#     bbox_areas_npy = np.load(f'data/{t}_bbox_areas.npy')
+#     # print(f'{t}: {world_coordinates_npy}')
+#     # print(f'{t}: {global_world_coordinates_npy}')
+#     t += 1
+
+# Create a SocketIO server
+sio = socketio.Server()
+app = socketio.WSGIApp(sio)
+
+
+@sio.event
+def deep_sort(sid, world_coordinates, features, bbox_areas):
+    # Get the objects that were sent in the emit() call
+    world_coordinates_npy, features_npy, bbox_areas_npy = (np.array(x) for x in (world_coordinates, features, bbox_areas))
+    global global_world_coordinates_npy, global_features_npy, global_bbox_area_npy, global_id, global_covariance, graph
 
     # compare world coordinates Euclidean distance
     if len(global_world_coordinates_npy) == 0:
@@ -116,6 +129,7 @@ while True:
         temp_mean, temp_covariance = kalman_filter.update(temp_mean, temp_covariance, world_coordinates_npy[temp_local_id])
         global_world_coordinates_npy[temp_global_id] = temp_mean
         global_covariance[temp_global_id] = temp_covariance
+        global_bbox_area_npy[temp_global_id] = bbox_areas_npy[temp_local_id]
         active_targets.append(temp_global_id)
     for temp_local_id in unmatched_detections:
         temp_global_id = len(global_id)
@@ -130,7 +144,7 @@ while True:
     #     global_id.remove(temp_global_id)
     #     global_features.pop(temp_global_id)
 
-    feature_comparer.partial_fit(global_features_npy, global_id, active_targets)
+    feature_comparer.partial_fit(global_features_npy, global_id, global_id)
 
     # removing the older graph
     graph.remove()
@@ -145,11 +159,15 @@ while True:
     for ID in active_targets:
         IDs.append(ID)
         xs.append(global_world_coordinates_npy[ID][0])
-        ys.append(global_world_coordinates_npy[ID][1])
+        ys.append(-global_world_coordinates_npy[ID][1])
     # Label the points
     for x, y, ID in zip(xs, ys, IDs):
         ax.annotate(ID, xy=(x, y))
     graph = ax.scatter(xs, ys, c='g')
 
     # calling pause function for 0.25 seconds
-    plt.pause(0.1)
+    plt.pause(1e-9)
+
+if __name__ == '__main__':
+    # Start the SocketIO server
+    eventlet.wsgi.server(eventlet.listen(("127.0.0.1", 5000)), app)
