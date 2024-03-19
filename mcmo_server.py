@@ -1,18 +1,21 @@
 # Read in X_w, Y_w, feature from local
-# TODO: Compare X_w, Y_w with existing tracks, match or create a new track
-# TODO: Compare features with existing tracks if there are no match, or more than one matches
+# Compare X_w, Y_w with existing tracks, match or create a new track
+# Compare features with existing tracks if there are close matches in distance.
 import os.path
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.optimize import linear_sum_assignment
 from deep_sort.sort.nn_matching import NearestNeighborDistanceMetric
 from scipy.spatial.distance import cdist
+from kalman_filter import KalmanFilter
 
 max_coordinates_distance = 1
 max_feature_distance = 0.2
 feature_comparer = NearestNeighborDistanceMetric("cosine", max_feature_distance, budget=100)
+kalman_filter = KalmanFilter()
 global_id = []
 global_world_coordinates_npy = np.array([])
+global_covariance = []
 global_features_npy = np.array([])
 global_bbox_area_npy = np.array([])
 t = 0
@@ -32,13 +35,13 @@ while True:
     if not os.path.exists(f'data/{t}_world_coordinates.npy'):
         break
     # Load the numpy array from the file
-    world_coordinates_npy = np.load(f'data/{t}_world_coordinates.npy').reshape(-1, 3)
+    world_coordinates_npy = np.load(f'data/{t}_world_coordinates.npy')[:, :2].reshape(-1, 2)
     world_coordinates_npy *= 0.001
     features_npy = np.load(f'data/{t}_features.npy')
     features_npy = features_npy.reshape(-1, 512)
     bbox_areas_npy = np.load(f'data/{t}_bbox_areas.npy')
-    print(f'{t}: {world_coordinates_npy}')
-    print(f'{t}: {global_world_coordinates_npy}')
+    # print(f'{t}: {world_coordinates_npy}')
+    # print(f'{t}: {global_world_coordinates_npy}')
     t += 1
 
     # compare world coordinates Euclidean distance
@@ -47,16 +50,13 @@ while True:
     elif len(world_coordinates_npy) == 0:
         matches, unmatched_tracks, unmatched_detections = [], [i for i in range(len(global_world_coordinates_npy))], []
     else:
-        # # Generate some random old and new coordinates
-        # global_world_coordinates_npy = np.array([[0, 0],
-        #                                          [100, 100],
-        #                                          [200, 200]])
-        # world_coordinates_npy = np.array([[0, 0.1],
-        #                                   [300, 300],
-        #                                   [200, 200.5]])
+        for i, (mean, variance) in enumerate(zip(global_world_coordinates_npy, global_covariance)):
+            mean, variance = kalman_filter.predict(mean, variance)
+            global_world_coordinates_npy[i] = mean
+            global_covariance[i] = variance
 
         # Compute the Euclidean distance matrix.
-        distance_matrix = cdist(global_world_coordinates_npy, world_coordinates_npy, 'euclidean')
+        distance_matrix = cdist(global_world_coordinates_npy[:, :2], world_coordinates_npy, 'euclidean')
 
         row_indices, col_indices = linear_sum_assignment(distance_matrix)
         matches, unmatched_tracks, unmatched_detections = [], [], []
@@ -79,7 +79,7 @@ while True:
             else:
                 matches.append((track_idx, detection_idx))
 
-        # TODO: compare feature cosine distance
+        # compare feature cosine distance
         cost_matrix = feature_comparer.distance(features_npy[ambiguous_local_id], ambiguous_global_id)
         cost_matrix[cost_matrix > max_feature_distance] = max_feature_distance + 1e-5
         cost_matrix = np.nan_to_num(cost_matrix)
@@ -112,13 +112,18 @@ while True:
         smooth_feat = 0.9 * global_features_npy[temp_global_id] + (1 - 0.9) * feature
         smooth_feat /= np.linalg.norm(smooth_feat)
         global_features_npy[temp_global_id] = smooth_feat
-        global_world_coordinates_npy[temp_global_id] = world_coordinates_npy[temp_local_id]
+        temp_mean, temp_covariance = global_world_coordinates_npy[temp_global_id], global_covariance[temp_global_id]
+        temp_mean, temp_covariance = kalman_filter.update(temp_mean, temp_covariance, world_coordinates_npy[temp_local_id])
+        global_world_coordinates_npy[temp_global_id] = temp_mean
+        global_covariance[temp_global_id] = temp_covariance
         active_targets.append(temp_global_id)
     for temp_local_id in unmatched_detections:
         temp_global_id = len(global_id)
         global_id.append(temp_global_id)
         global_features_npy = np.append(global_features_npy, features_npy[temp_local_id]).reshape(-1, 512)
-        global_world_coordinates_npy = np.append(global_world_coordinates_npy, world_coordinates_npy[temp_local_id]).reshape(-1, 3)
+        temp_mean, temp_covariance = kalman_filter.initiate(world_coordinates_npy[temp_local_id])
+        global_world_coordinates_npy = np.append(global_world_coordinates_npy, temp_mean).reshape(-1, 4)
+        global_covariance.append(temp_covariance)
         global_bbox_area_npy = np.append(global_bbox_area_npy, bbox_areas_npy[temp_local_id])
         active_targets.append(temp_global_id)
     # for temp_global_id in unmatched_tracks:
@@ -147,4 +152,4 @@ while True:
     graph = ax.scatter(xs, ys, c='g')
 
     # calling pause function for 0.25 seconds
-    plt.pause(0.25)
+    plt.pause(0.1)

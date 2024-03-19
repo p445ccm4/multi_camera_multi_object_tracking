@@ -45,10 +45,10 @@ class KalmanFilter(object):
         mean = np.r_[mean_pos, mean_vel]
 
         std = [
-            2 * self._std_weight_position * measurement[1],  # std_x
-            2 * self._std_weight_position * measurement[1],  # std_y
-            10 * self._std_weight_velocity * measurement[1],  # std_vx
-            10 * self._std_weight_velocity * measurement[1]]  # std_vy
+            2 * self._std_weight_position,  # std_x
+            2 * self._std_weight_position,  # std_y
+            10 * self._std_weight_velocity,  # std_vx
+            10 * self._std_weight_velocity]  # std_vy
         covariance = np.diag(np.square(std))
         return mean, covariance
 
