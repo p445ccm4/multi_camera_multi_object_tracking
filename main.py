@@ -136,9 +136,9 @@ if __name__ == "__main__":
             frame = draw_boxes(frame, bbox_xyxy, identities, world_coordinates)
             frame = cam.draw_axes(frame)
 
-            np.save(f'data/{t}_world_coordinates.npy', world_coordinates)
-            np.save(f'data/{t}_features.npy', features)
-            np.save(f'data/{t}_identities.npy', identities)
+            # np.save(f'data/{t}_world_coordinates.npy', world_coordinates)
+            # np.save(f'data/{t}_features.npy', features)
+            # np.save(f'data/{t}_identities.npy', identities)
             t += 1
 
             # # Serialize the object using pickle

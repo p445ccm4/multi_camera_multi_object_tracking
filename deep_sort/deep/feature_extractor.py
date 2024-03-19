@@ -1,3 +1,5 @@
+import time
+
 import cv2
 import logging
 import numpy as np
@@ -54,6 +56,9 @@ class Extractor(object):
 
 if __name__ == '__main__':
     img = cv2.imread("Lenna.jpg")[:, :, (2, 1, 0)]
-    extr = Extractor("osnet_x0_25.engine")
+    extr = Extractor("/home/nvidia/yolov7-deepsort/deep_sort/deep/checkpoint/osnet_x0_25.engine")
+    start = time.time()
     feature = extr([img])
+    use_time = time.time() - start
     print(feature.shape)
+    print(use_time)

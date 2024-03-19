@@ -96,7 +96,7 @@ class ImgToWorld(object):
         """
 
         world_coordinates = []
-        for x1, y1, x2, y2, _ in outputs:
+        for x1, y1, x2, y2 in outputs[:4]:
             image_x = (x1 + x2) / 2
             image_y = max(y1, y2)
             world_coordinate = self.image_to_world([image_x, image_y])
