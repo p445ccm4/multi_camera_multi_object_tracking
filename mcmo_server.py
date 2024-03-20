@@ -2,14 +2,12 @@
 # Compare X_w, Y_w with existing tracks, match or create a new track
 # Compare features with existing tracks if there are close matches in distance.
 # TODO: fuse inputs from more than one cameras
-import numpy as np
-import socketio
 import eventlet
+import socketio
 from matplotlib import pyplot as plt
-from scipy.optimize import linear_sum_assignment
-from deep_sort.sort.nn_matching import NearestNeighborDistanceMetric
 
 from deep_sort.sort.detection import Detection
+from deep_sort.sort.nn_matching import NearestNeighborDistanceMetric
 from deep_sort.sort.tracker import Tracker
 
 max_coordinates_distance = 1
@@ -37,6 +35,9 @@ app = socketio.WSGIApp(sio)
 
 @sio.event
 def update(sid, world_coordinates, features, bbox_areas):
+    # TODO:
+    #  wait and get data from cameras one by one
+    #  put into the tracker for updates
     # Get the objects that were sent in the emit() call
     detections = [Detection(xy, feature, bbox_area) for xy, feature, bbox_area in zip(world_coordinates, features, bbox_areas)]
     tracker.predict()

@@ -1,12 +1,14 @@
 # vim: expandtab:ts=4:sw=4
 from __future__ import absolute_import
+
 import numpy as np
+
+from kalman_filter import KalmanFilter2
 from . import kalman_filter
 from . import linear_assignment
 # from . import iou_matching
 from .euclidean_matching import euclidean_cost
 from .track import Track
-from kalman_filter import KalmanFilter2
 
 
 class Tracker:
@@ -71,6 +73,10 @@ class Tracker:
         matches, unmatched_tracks, unmatched_detections = \
             self._match(detections)
 
+        # TODO: MAKE ADJUSTMENTS BELOW:
+        #  match detections from all cameras one by one
+        #  merge matches from all cameras and then update the feature and track
+        #  detections with larger bbox_area should have more impact on the update
         # Update track set.
         for track_idx, detection_idx in matches:
             self.tracks[track_idx].update(
@@ -92,6 +98,7 @@ class Tracker:
             # track.features = []
         self.metric.partial_fit(
             np.asarray(features), np.asarray(targets), active_targets)
+        # TODO ###############################################################
 
     def _match(self, detections):
 
