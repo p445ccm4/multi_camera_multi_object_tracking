@@ -64,7 +64,7 @@ class Track:
     """
 
     def __init__(self, mean, covariance, track_id, n_init, max_age,
-                 feature=None, score=None):
+                 feature=None):
         self.mean = mean
         self.covariance = covariance
         self.track_id = track_id
@@ -77,43 +77,10 @@ class Track:
         if feature is not None:
             feature /= np.linalg.norm(feature)
             self.features.append(feature)
-
-        self.scores = []
-        if score is not None:
-            self.scores.append(score)
         
         self._n_init = n_init
         self._max_age = max_age
 
-
-    def to_tlwh(self):
-        """Get current position in bounding box format `(top left x, top left y,
-        width, height)`.
-
-        Returns
-        -------
-        ndarray
-            The bounding box.
-
-        """
-        ret = self.mean[:4].copy()
-        ret[2] *= ret[3]
-        ret[:2] -= ret[2:] / 2
-        return ret
-
-    def to_tlbr(self):
-        """Get current position in bounding box format `(min x, miny, max x,
-        max y)`.
-
-        Returns
-        -------
-        ndarray
-            The bounding box.
-
-        """
-        ret = self.to_tlwh()
-        ret[2:] = ret[:2] + ret[2:]
-        return ret
 
     def predict(self, kf):
         """Propagate the state distribution to the current time step using a
@@ -142,7 +109,7 @@ class Track:
 
         """
         self.mean, self.covariance = kf.update(
-            self.mean, self.covariance, detection.to_xyah(), detection.confidence)
+            self.mean, self.covariance, detection.xy)
         
         feature = detection.feature / np.linalg.norm(detection.feature)
         smooth_feat = 0.9 * self.features[-1] + (1 - 0.9) * feature

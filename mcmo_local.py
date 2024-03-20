@@ -1,6 +1,7 @@
 """
 An example that uses TensorRT's Python api to make inferences.
 """
+import argparse
 import ctypes
 import socketio
 import sys
@@ -13,14 +14,15 @@ from multi_camera_calibration.img_to_world import ImgToWorld
 
 
 if __name__ == "__main__":
+    # Parse command line arguments
+    parser = argparse.ArgumentParser(description="MCMO local")
+    parser.add_argument("cam_no", type=int, help="Camera number")
+    args = parser.parse_args()
+    cam_no = args.cam_no
+
     # load custom plugin and engine
     PLUGIN_LIBRARY = "build/libmyplugins.so"
     engine_file_path = "build/yolov7.engine"
-
-    if len(sys.argv) > 1:
-        engine_file_path = sys.argv[1]
-    if len(sys.argv) > 2:
-        PLUGIN_LIBRARY = sys.argv[2]
 
     ctypes.CDLL(PLUGIN_LIBRARY)
 
@@ -36,24 +38,17 @@ if __name__ == "__main__":
             "microwave", "oven", "toaster", "sink", "refrigerator", "book", "clock", "vase", "scissors", "teddy bear",
             "hair drier", "toothbrush"]
 
-    # if os.path.exists('output/'):
-    #     shutil.rmtree('output/')
-    # os.makedirs('output/')
     # a YoLov7TRT instance
     yolov7_wrapper = YoLov7TRT(engine_file_path)
-    # tracker = DeepSort("deep_sort/deep/checkpoint/osnet_x0_25.engine", max_dist=0.2, min_confidence=0.4, nms_max_overlap=1, max_iou_distance=0.7, max_age=70, n_init=3, nn_budget=100, use_cuda=True)
     feature_extractor = Extractor("deep_sort/deep/checkpoint/osnet_x0_25.engine", use_cuda=True)
-    cam = ImgToWorld(cam_id=0)
+    cam = ImgToWorld(cam_id=cam_no)
 
     # read video and do inference than save the result video
     # cap = cv2.VideoCapture("video/MOT_test_video.mp4")
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(cam_no)
     # Set the input resolution
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-    # Define the codec and create VideoWriter object  (mp4)
-    # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    # out = cv2.VideoWriter('video/output.mp4',fourcc, 20.0, (int(cap.get(3)),int(cap.get(4))))
 
     # Create a SocketIO client
     sio = socketio.Client()
@@ -101,17 +96,15 @@ if __name__ == "__main__":
             # np.save(f'data/{t}_world_coordinates.npy', world_coordinates)
             # np.save(f'data/{t}_features.npy', features)
             # np.save(f'data/{t}_bbox_areas.npy', bbox_areas)
-            t += 1
+            # t += 1
 
-            sio.emit('deep_sort', (world_coordinates.tolist(), features.tolist(), bbox_areas.tolist()))
+            sio.emit('update', (world_coordinates.tolist(), features.tolist(), bbox_areas.tolist()))
         else:
             frame = frame
             frame = cam.draw_axes(frame)
 
-        # save the result video
-        # out.write(frame)
         cv2.imshow("result", frame)
-        if cv2.waitKey(5) & 0xFF == ord('q'):
+        if cv2.waitKey(200) & 0xFF == ord('q'):
             break
 
     # destroy the instance
