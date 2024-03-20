@@ -3,8 +3,10 @@ from __future__ import absolute_import
 import numpy as np
 from . import kalman_filter
 from . import linear_assignment
-from . import iou_matching
+# from . import iou_matching
+from .euclidean_matching import euclidean_cost
 from .track import Track
+from kalman_filter import KalmanFilter2
 
 
 class Tracker:
@@ -37,13 +39,14 @@ class Tracker:
 
     """
 
-    def __init__(self, metric, max_iou_distance=0.7, max_age=70, n_init=3):
+    def __init__(self, metric, max_euclidean_distance=0.7, max_age=70, n_init=3):
         self.metric = metric
-        self.max_iou_distance = max_iou_distance
+        self.max_euclidean_distance = max_euclidean_distance
         self.max_age = max_age
         self.n_init = n_init
 
-        self.kf = kalman_filter.KalmanFilter()
+        # self.kf = kalman_filter.KalmanFilter()
+        self.kf = KalmanFilter2()
         self.tracks = []
         self._next_id = 1
 
@@ -181,7 +184,7 @@ class Tracker:
             self.tracks[k].time_since_update != 1]
         matches_b, unmatched_tracks_b, unmatched_detections = \
             linear_assignment.min_cost_matching(
-                iou_matching.iou_cost, self.max_iou_distance, self.tracks,
+                euclidean_cost, self.max_euclidean_distance, self.tracks,
                 detections, iou_track_candidates, unmatched_detections)
 
         matches = matches_a + matches_b
@@ -189,8 +192,8 @@ class Tracker:
         return matches, unmatched_tracks, unmatched_detections
 
     def _initiate_track(self, detection):
-        mean, covariance = self.kf.initiate(detection.to_xyah())
+        mean, covariance = self.kf.initiate(detection.xy)
         self.tracks.append(Track(
             mean, covariance, self._next_id, self.n_init, self.max_age,
-            detection.feature, detection.confidence))
+            detection.feature))
         self._next_id += 1

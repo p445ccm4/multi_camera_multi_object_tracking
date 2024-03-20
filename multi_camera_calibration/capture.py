@@ -11,7 +11,7 @@ if __name__ == "__main__":
 
     cam_no = args.cam_no
     # Open the default camera (0)
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(cam_no)
     cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 

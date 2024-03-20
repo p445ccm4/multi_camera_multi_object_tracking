@@ -1,26 +1,23 @@
 # Read in X_w, Y_w, feature from local
 # Compare X_w, Y_w with existing tracks, match or create a new track
 # Compare features with existing tracks if there are close matches in distance.
-import os.path
+# TODO: fuse inputs from more than one cameras
 import numpy as np
 import socketio
 import eventlet
 from matplotlib import pyplot as plt
 from scipy.optimize import linear_sum_assignment
 from deep_sort.sort.nn_matching import NearestNeighborDistanceMetric
-from scipy.spatial.distance import cdist
-from kalman_filter import KalmanFilter
+
+from deep_sort.sort.detection import Detection
+from deep_sort.sort.tracker import Tracker
 
 max_coordinates_distance = 1
 max_feature_distance = 0.2
-feature_comparer = NearestNeighborDistanceMetric("cosine", max_feature_distance, budget=100)
-kalman_filter = KalmanFilter()
-global_id = []
-global_world_coordinates_npy = np.array([])
-global_covariance = []
-global_features_npy = np.array([])
-global_bbox_area_npy = np.array([])
-t = 0
+metric = NearestNeighborDistanceMetric("cosine", max_feature_distance, budget=100)
+tracker = Tracker(metric, max_euclidean_distance=2, max_age=60, n_init=3)
+# kalman_filter = KalmanFilter2()
+
 
 # Create the figure and axes
 fig, ax = plt.subplots()
@@ -33,133 +30,35 @@ plt.ion()
 graph = ax.scatter([], [])
 plt.pause(0.25)
 
-# while True:
-#     if not os.path.exists(f'data/{t}_world_coordinates.npy'):
-#         break
-#     # Load the numpy array from the file
-#     world_coordinates_npy = np.load(f'data/{t}_world_coordinates.npy')[:, :2]
-#     world_coordinates_npy *= 0.001
-#     features_npy = np.load(f'data/{t}_features.npy')
-#     features_npy = features_npy.reshape(-1, 512)
-#     bbox_areas_npy = np.load(f'data/{t}_bbox_areas.npy')
-#     # print(f'{t}: {world_coordinates_npy}')
-#     # print(f'{t}: {global_world_coordinates_npy}')
-#     t += 1
-
 # Create a SocketIO server
 sio = socketio.Server()
 app = socketio.WSGIApp(sio)
 
 
 @sio.event
-def deep_sort(sid, world_coordinates, features, bbox_areas):
+def update(sid, world_coordinates, features, bbox_areas):
     # Get the objects that were sent in the emit() call
-    world_coordinates_npy, features_npy, bbox_areas_npy = (np.array(x) for x in (world_coordinates, features, bbox_areas))
-    global global_world_coordinates_npy, global_features_npy, global_bbox_area_npy, global_id, global_covariance, graph
+    detections = [Detection(xy, feature, bbox_area) for xy, feature, bbox_area in zip(world_coordinates, features, bbox_areas)]
+    tracker.predict()
+    tracker.update(detections)
 
-    # compare world coordinates Euclidean distance
-    if len(global_world_coordinates_npy) == 0:
-        matches, unmatched_tracks, unmatched_detections = [], [], [i for i in range(len(world_coordinates_npy))]
-    elif len(world_coordinates_npy) == 0:
-        matches, unmatched_tracks, unmatched_detections = [], [i for i in range(len(global_world_coordinates_npy))], []
-    else:
-        for i, (mean, variance) in enumerate(zip(global_world_coordinates_npy, global_covariance)):
-            mean, variance = kalman_filter.predict(mean, variance)
-            global_world_coordinates_npy[i] = mean
-            global_covariance[i] = variance
-
-        # Compute the Euclidean distance matrix.
-        distance_matrix = cdist(global_world_coordinates_npy[:, :2], world_coordinates_npy, 'euclidean')
-
-        row_indices, col_indices = linear_sum_assignment(distance_matrix)
-        matches, unmatched_tracks, unmatched_detections = [], [], []
-        ambiguous_global_id = []
-        ambiguous_local_id = np.where(np.sum(distance_matrix < 1, axis=0) >= 2)[0]
-        for col in range(len(world_coordinates_npy)):
-            if col not in col_indices:
-                unmatched_detections.append(col)
-        for row in range(len(global_world_coordinates_npy)):
-            if row not in row_indices:
-                unmatched_tracks.append(row)
-        for row, col in zip(row_indices, col_indices):
-            track_idx = row
-            detection_idx = col
-            if distance_matrix[row, col] > max_coordinates_distance:
-                unmatched_tracks.append(track_idx)
-                unmatched_detections.append(detection_idx)
-            elif detection_idx in ambiguous_local_id:
-                ambiguous_global_id.append(track_idx)
-            else:
-                matches.append((track_idx, detection_idx))
-
-        # compare feature cosine distance
-        cost_matrix = feature_comparer.distance(features_npy[ambiguous_local_id], ambiguous_global_id)
-        cost_matrix[cost_matrix > max_feature_distance] = max_feature_distance + 1e-5
-        cost_matrix = np.nan_to_num(cost_matrix)
-        row_indices, col_indices = linear_sum_assignment(cost_matrix)
-
-        amb_matches, amb_unmatched_tracks, amb_unmatched_detections = [], [], []
-        for col, detection_idx in enumerate(ambiguous_local_id):
-            if col not in col_indices:
-                amb_unmatched_detections.append(detection_idx)
-        for row, track_idx in enumerate(ambiguous_global_id):
-            if row not in row_indices:
-                amb_unmatched_tracks.append(track_idx)
-        for row, col in zip(row_indices, col_indices):
-            track_idx = ambiguous_global_id[row]
-            detection_idx = ambiguous_local_id[col]
-            if cost_matrix[row, col] > max_feature_distance:
-                amb_unmatched_tracks.append(track_idx)
-                amb_unmatched_detections.append(detection_idx)
-            else:
-                amb_matches.append((track_idx, detection_idx))
-
-        matches += amb_matches
-        unmatched_tracks += amb_unmatched_tracks
-        unmatched_detections += amb_unmatched_detections
-
-    active_targets = []
-    # update global variables
-    for (temp_global_id, temp_local_id) in matches:
-        feature = features_npy[temp_local_id] / np.linalg.norm(features_npy[temp_local_id])
-        smooth_feat = 0.9 * global_features_npy[temp_global_id] + (1 - 0.9) * feature
-        smooth_feat /= np.linalg.norm(smooth_feat)
-        global_features_npy[temp_global_id] = smooth_feat
-        temp_mean, temp_covariance = global_world_coordinates_npy[temp_global_id], global_covariance[temp_global_id]
-        temp_mean, temp_covariance = kalman_filter.update(temp_mean, temp_covariance, world_coordinates_npy[temp_local_id])
-        global_world_coordinates_npy[temp_global_id] = temp_mean
-        global_covariance[temp_global_id] = temp_covariance
-        global_bbox_area_npy[temp_global_id] = bbox_areas_npy[temp_local_id]
-        active_targets.append(temp_global_id)
-    for temp_local_id in unmatched_detections:
-        temp_global_id = len(global_id)
-        global_id.append(temp_global_id)
-        global_features_npy = np.append(global_features_npy, features_npy[temp_local_id]).reshape(-1, 512)
-        temp_mean, temp_covariance = kalman_filter.initiate(world_coordinates_npy[temp_local_id])
-        global_world_coordinates_npy = np.append(global_world_coordinates_npy, temp_mean).reshape(-1, 4)
-        global_covariance.append(temp_covariance)
-        global_bbox_area_npy = np.append(global_bbox_area_npy, bbox_areas_npy[temp_local_id])
-        active_targets.append(temp_global_id)
-    # for temp_global_id in unmatched_tracks:
-    #     global_id.remove(temp_global_id)
-    #     global_features.pop(temp_global_id)
-
-    feature_comparer.partial_fit(global_features_npy, global_id, global_id)
-
+    global graph
     # removing the older graph
     graph.remove()
     ax.clear()
-
     # Set the x-axis range
-    ax.set_xlim(-10, 10)
+    ax.set_xlim(-5, 5)
     # Set the y-axis range
-    ax.set_ylim(-10, 10)
+    ax.set_ylim(-5, 5)
+
     # plotting newer graph
     xs, ys, IDs = [], [], []
-    for ID in active_targets:
-        IDs.append(ID)
-        xs.append(global_world_coordinates_npy[ID][0])
-        ys.append(-global_world_coordinates_npy[ID][1])
+    for track in tracker.tracks:
+        if not track.is_confirmed() or track.time_since_update > 1:
+            continue
+        IDs.append(track.track_id)
+        xs.append(track.mean[0])
+        ys.append(-track.mean[1])
     # Label the points
     for x, y, ID in zip(xs, ys, IDs):
         ax.annotate(ID, xy=(x, y))
@@ -167,6 +66,7 @@ def deep_sort(sid, world_coordinates, features, bbox_areas):
 
     # calling pause function for 0.25 seconds
     plt.pause(1e-9)
+
 
 if __name__ == '__main__':
     # Start the SocketIO server
