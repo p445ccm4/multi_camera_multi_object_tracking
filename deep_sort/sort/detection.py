@@ -8,21 +8,21 @@ class Detection(object):
 
     Parameters
     ----------
-    tlwh : array_like
-        Bounding box in format `(x, y, w, h)`.
-    confidence : float
-        Detector confidence score.
+    xy : array_like
+        World Coordinates in format `(x, y)`.
     feature : array_like
         A feature vector that describes the object contained in this image.
+    bbox_area : float
+        bounding box area
 
     Attributes
     ----------
-    tlwh : ndarray
-        Bounding box in format `(top left x, top left y, width, height)`.
-    confidence : ndarray
-        Detector confidence score.
-    feature : ndarray | NoneType
+    xy : array_like
+        World Coordinates in format `(x, y)`.
+    feature : array_like
         A feature vector that describes the object contained in this image.
+    bbox_area : float
+        bounding box area
 
     """
 

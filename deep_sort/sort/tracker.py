@@ -6,7 +6,7 @@ import numpy as np
 from kalman_filter import KalmanFilter2
 from . import kalman_filter
 from . import linear_assignment
-# from . import iou_matching
+from .detection import Detection
 from .euclidean_matching import euclidean_cost
 from .track import Track
 
@@ -60,31 +60,26 @@ class Tracker:
         for track in self.tracks:
             track.predict(self.kf)
 
-    def update(self, detections):
+    def update(self, all_detections):
         """Perform measurement update and track management.
 
         Parameters
         ----------
-        detections : List[deep_sort.detection.Detection]
-            A list of detections at the current time step.
+        all_detections : Dict{sid: List[deep_sort.detection.Detection]}
+            A list of lists of detections at the current time step.
 
         """
-        # Run matching cascade.
-        matches, unmatched_tracks, unmatched_detections = \
-            self._match(detections)
 
-        # TODO: MAKE ADJUSTMENTS BELOW:
-        #  match detections from all cameras one by one
-        #  merge matches from all cameras and then update the feature and track
-        #  detections with larger bbox_area should have more impact on the update
+        matches, unmatched_tracks, unmatched_detections = self.mcmo_match(all_detections)
+
         # Update track set.
-        for track_idx, detection_idx in matches:
+        for track_idx, detections in matches.items():
             self.tracks[track_idx].update(
-                self.kf, detections[detection_idx])
+                self.kf, detections)
         for track_idx in unmatched_tracks:
             self.tracks[track_idx].mark_missed()
-        for detection_idx in unmatched_detections:
-            self._initiate_track(detections[detection_idx])
+        for detection in unmatched_detections:
+            self._initiate_track(detection)
         self.tracks = [t for t in self.tracks if not t.is_deleted()]
 
         # Update distance metric.
@@ -98,7 +93,53 @@ class Tracker:
             # track.features = []
         self.metric.partial_fit(
             np.asarray(features), np.asarray(targets), active_targets)
-        # TODO ###############################################################
+
+    def mcmo_match(self, all_detections):
+        """
+        match detections from all cameras one by one
+        Args:
+            all_detections : Dict{sid: List[deep_sort.detection.Detection]}
+            A list of lists of detections at the current time step.
+
+        Returns:
+            matches: dict{track_idx: (Detection, Detection, ...), track_idx: (...)}
+            unmatched_tracks: set{track_idx, track_idx, ...}
+            unmatched_detections: [Detection, Detection, ...]
+        """
+        matches, unmatched_tracks, unmatched_detections = {}, set(), []
+        for detections in all_detections.values():
+            # Run matching cascade.
+            sub_matches_idx, sub_unmatched_tracks_idx, sub_unmatched_detections_idx = \
+                self._match(detections)
+            for track_idx, detection_idx in sub_matches_idx:
+                # check if more than one camera have the same match
+                if track_idx not in matches:
+                    matches[track_idx] = [detections[detection_idx]]
+                else:
+                    matches[track_idx].append(detections[detection_idx])
+            for track_idx in sub_unmatched_tracks_idx:
+                unmatched_tracks.add(track_idx)
+            for detection_idx in sub_unmatched_detections_idx:
+                unmatched_detections.append(detections[detection_idx])
+
+        # remove indices from unmatched_tracks that also appear in matches
+        unmatched_tracks.difference_update(matches.keys())
+
+        # merge matches from all cameras and then update the feature and track
+        # detections with larger bbox_area should have more impact on the update
+        for track_idx, detections in matches.items():
+            x, y, sum_areas = 0., 0., 0.
+            feature = np.zeros_like(detections[0].feature)
+            for detection in detections:
+                x += detection.xy[0] * detection.bbox_area
+                y += detection.xy[1] * detection.bbox_area
+                feature += detection.feature * detection.bbox_area
+                sum_areas += detection.bbox_area
+            matches[track_idx] = Detection((x / sum_areas, y / sum_areas), feature / sum_areas, 1.)
+
+        # TODO: check if unmatched_detection from several cameras are on the same object
+
+        return matches, unmatched_tracks, unmatched_detections
 
     def _match(self, detections):
 
@@ -157,17 +198,17 @@ class Tracker:
         unconfirmed_tracks = [
             i for i, t in enumerate(self.tracks) if not t.is_confirmed()]
 
-
         # Associate confirmed tracks using appearance features.
         matches_a, unmatched_tracks_a, unmatched_detections = \
             linear_assignment.matching_cascade(
                 gated_metric, self.metric.matching_threshold, self.max_age,
                 self.tracks, detections, confirmed_tracks)
 
-        if len(confirmed_tracks)!=0:
+        if len(confirmed_tracks) != 0:
             # New step: Greedy matching for unconfirmed tracks that disappeared in the middle
             middle_unconfirmed_tracks = [
-                i for i in unconfirmed_tracks if disappeared_in_middle(self.tracks[i]) and self.tracks[i].track_id in self.metric.samples]
+                i for i in unconfirmed_tracks if
+                disappeared_in_middle(self.tracks[i]) and self.tracks[i].track_id in self.metric.samples]
 
             # print("middle_unconfirmed_tracks: ", middle_unconfirmed_tracks)
             # print("unmatched_detections: ", unmatched_detections)
