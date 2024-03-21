@@ -3,15 +3,15 @@ An example that uses TensorRT's Python api to make inferences.
 """
 import argparse
 import ctypes
-import socketio
-import sys
+
 import cv2
 import numpy as np
+import socketio
+
 from deep_sort.deep.feature_extractor import Extractor
-from yolov7trt import YoLov7TRT
 from draw import draw_boxes
 from multi_camera_calibration.img_to_world import ImgToWorld
-
+from yolov7trt import YoLov7TRT
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -55,8 +55,6 @@ if __name__ == "__main__":
     # Connect to the SocketIO server
     sio.connect('http://127.0.0.1:5000')
 
-    t = 0
-
     while(True):
         # Capture frame-by-frame
         ret, frame = cap.read() # 640x480
@@ -98,12 +96,12 @@ if __name__ == "__main__":
             # np.save(f'data/{t}_bbox_areas.npy', bbox_areas)
             # t += 1
 
-            sio.emit('update', (world_coordinates.tolist(), features.tolist(), bbox_areas.tolist()))
+            sio.emit('update', (cam_no, world_coordinates.tolist(), features.tolist(), bbox_areas.tolist()))
         else:
             frame = frame
             frame = cam.draw_axes(frame)
 
-        cv2.imshow("result", frame)
+        cv2.imshow(f'cam {cam_no}', frame)
         if cv2.waitKey(200) & 0xFF == ord('q'):
             break
 

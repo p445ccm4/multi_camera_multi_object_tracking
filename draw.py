@@ -1,4 +1,3 @@
-import numpy as np
 import cv2
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
@@ -20,7 +19,7 @@ def draw_boxes(img, bbox, identities=None, world_coordinates=None, offset=(0,0))
         y1 += offset[1]
         y2 += offset[1]
         # box text and bar
-        id = int(identities[i]) if identities is not None else 0    
+        id = int(identities[i]) if identities is not None else i
         color = compute_color_for_labels(id)
         label = '{:d} ({:.2f}, {:.2f})'.format(id, world_coordinates[i][0], world_coordinates[i][1])
         t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 2 , 2)[0]

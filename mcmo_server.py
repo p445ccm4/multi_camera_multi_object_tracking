@@ -19,9 +19,9 @@ tracker = Tracker(metric, max_euclidean_distance=2, max_age=60, n_init=3)
 # Create the figure and axes
 fig, ax = plt.subplots()
 # Set the x-axis range
-ax.set_xlim(-5, 5)
+ax.set_xlim(-3, 3)
 # Set the y-axis range
-ax.set_ylim(-5, 5)
+ax.set_ylim(-3, 3)
 plt.ion()
 # plotting the first frame
 graph = ax.scatter([], [])
@@ -33,11 +33,12 @@ app = socketio.WSGIApp(sio)
 
 all_detections = {}
 @sio.event
-def update(sid, world_coordinates, features, bbox_areas):
+def update(sid, cam_no, world_coordinates, features, bbox_areas):
     """
     get data from cameras one by one, then parse into the tracker for updates
     Args:
         sid:
+        cam_no:
         world_coordinates:
         features:
         bbox_areas:
@@ -48,7 +49,7 @@ def update(sid, world_coordinates, features, bbox_areas):
 
     # Get the objects that were sent in the emit() call
     detections = [Detection(xy, feature, bbox_area) for xy, feature, bbox_area in zip(world_coordinates, features, bbox_areas)]
-    all_detections[sid] = detections
+    all_detections[cam_no] = detections
 
     if len(all_detections) == n_cam:
         tracker.predict()
@@ -59,21 +60,22 @@ def update(sid, world_coordinates, features, bbox_areas):
         graph.remove()
         ax.clear()
         # Set the x-axis range
-        ax.set_xlim(-5, 5)
+        ax.set_xlim(-3, 3)
         # Set the y-axis range
-        ax.set_ylim(-5, 5)
+        ax.set_ylim(-3, 3)
 
         # plotting newer graph
-        xs, ys, IDs = [], [], []
+        xs, ys, IDs, local_ids = [], [], [], []
         for track in tracker.tracks:
             if not track.is_confirmed() or track.time_since_update > 1:
                 continue
             IDs.append(track.track_id)
             xs.append(track.mean[0])
             ys.append(-track.mean[1])
+            local_ids.append(track.local_id_dict)
         # Label the points
-        for x, y, ID in zip(xs, ys, IDs):
-            ax.annotate(ID, xy=(x, y))
+        for x, y, ID, local_id in zip(xs, ys, IDs, local_ids):
+            ax.annotate(f'{ID}, {local_id}', xy=(x, y))
         graph = ax.scatter(xs, ys, c='g')
 
         # calling pause function for 0.25 seconds

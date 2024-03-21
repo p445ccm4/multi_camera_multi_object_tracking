@@ -80,6 +80,7 @@ class Track:
         
         self._n_init = n_init
         self._max_age = max_age
+        self.local_id_dict = {}
 
 
     def predict(self, kf):

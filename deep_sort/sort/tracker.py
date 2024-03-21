@@ -107,7 +107,7 @@ class Tracker:
             unmatched_detections: [Detection, Detection, ...]
         """
         matches, unmatched_tracks, unmatched_detections = {}, set(), []
-        for detections in all_detections.values():
+        for cam_no, detections in all_detections.items():
             # Run matching cascade.
             sub_matches_idx, sub_unmatched_tracks_idx, sub_unmatched_detections_idx = \
                 self._match(detections)
@@ -117,6 +117,7 @@ class Tracker:
                     matches[track_idx] = [detections[detection_idx]]
                 else:
                     matches[track_idx].append(detections[detection_idx])
+                self.tracks[track_idx].local_id_dict[cam_no] = detection_idx
             for track_idx in sub_unmatched_tracks_idx:
                 unmatched_tracks.add(track_idx)
             for detection_idx in sub_unmatched_detections_idx:
